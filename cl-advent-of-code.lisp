@@ -46,3 +46,17 @@
   (nth-value 0
              (dexador:get (format nil "~a/input" (build-endpoint year day))
                           :cookie-jar (bake-cookies token))))
+
+
+(defun submit-answer (year day answer &key token (part :part-one))
+  "Submits the given answer for the day specified. Optionally :part-one and :part-two can be specified."
+  (elt (lquery:$ (initialize (dexador:post (format nil "~a/answer" (build-endpoint year day))
+                                           :cookie-jar (bake-cookies token)
+                                           :content `(("level" . ,(format nil "~a" (case part
+                                                                                     (:part-one 1)
+                                                                                     (:part-two 2)
+                                                                                     (t 1))))
+                                                      ("answer" . ,(format nil "~a" answer)))))
+         "body main article p"
+         (render-text))
+       0))
