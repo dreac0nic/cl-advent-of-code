@@ -13,3 +13,12 @@
     (let ((buffer (make-string (file-length stream))))
       (read-sequence buffer stream)
       (string-trim '(#\Space #\Newline #\Tab) buffer))))
+
+
+(defun build-endpoint (year day)
+  "Build the endpoint for a specific day's API."
+  (format nil "~a://~a/~d/day/~d"
+          *protocol*
+          *domain*
+          year
+          day))
