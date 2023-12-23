@@ -60,3 +60,24 @@
          "body main article p"
          (render-text))
        0))
+
+
+(defmacro with-puzzle ((&key day token year)
+                       (&key input-binding)
+                       &body body)
+  "Provides a framework for interacting with Advent of Code, including pulling the puzzle input and submitting answers."
+  (let ((G!day (gensym "DAY"))
+        (G!year (gensym "YEAR"))
+        (G!token (gensym "TOKEN")))
+    `(let* ((,G!day ,day)
+            (,G!year ,year)
+            (,G!token ,token)
+            (,input-binding (get-puzzle-input ,G!year ,G!day ,G!token)))
+       (labels ((submit-part-one (answer)
+                  (submit-answer ,G!year ,G!day answer :token ,G!token :part :part-one))
+                (submit-part-two (answer)
+                  (submit-answer ,G!year ,G!day answer :token ,G!token :part :part-two)))
+         (declare (ignorable (function submit-part-one)
+                             (function submit-part-two)))
+         (progn
+           ,@body)))))
