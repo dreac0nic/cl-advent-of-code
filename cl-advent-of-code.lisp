@@ -39,3 +39,10 @@
           list
           (merge-cookies cookies))
     cookies))
+
+
+(defun get-puzzle-input (year day &optional token)
+  "Retrieve the user's pauzzle input for the year/day specified."
+  (nth-value 0
+             (dexador:get (format nil "~a/input" (build-endpoint year day))
+                          :cookie-jar (bake-cookies token))))
