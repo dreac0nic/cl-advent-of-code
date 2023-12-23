@@ -7,12 +7,17 @@
 (defvar *domain* "adventofcode.com")
 
 
+(defvar *puzzle-input-cache* nil
+  "Stores the puzzle answers to prevent spamming the AoC API")
+
+
 (defun slurp (path)
   "Reads in entire file specified by path as a string"
-  (with-open-file (stream path)
-    (let ((buffer (make-string (file-length stream))))
-      (read-sequence buffer stream)
-      (string-trim '(#\Space #\Newline #\Tab) buffer))))
+  (with-open-file (stream path :if-does-not-exist nil)
+    (when stream
+      (let ((buffer (make-string (file-length stream))))
+        (read-sequence buffer stream)
+        (string-trim '(#\Space #\Newline #\Tab) buffer)))))
 
 
 (defun build-endpoint (year day)
@@ -28,8 +33,10 @@
   "Creates a cookie jar with the token packed as a session cookie"
   (let ((cookies (make-cookie-jar)))
     (-<>> (or token
-              (slurp ".session")
-              (sb-ext:posix-getenv "AOC_SESSION"))
+              (slurp #p".session")
+              (slurp #p"~/.aoc_session")
+              (sb-ext:posix-getenv "AOC_SESSION")
+              "")
           (make-cookie :name "session"
                        :value <>
                        :domain (format nil ".~a" *domain*)
@@ -62,22 +69,52 @@
        0))
 
 
-(defmacro with-puzzle ((&key day token year)
+(defun clear-puzzle-cache (year day)
+  "Clears the puzzle input cache for this year and day combo"
+  (let ((cache (assoc (cons year day) *puzzle-input-cache* :test 'equal)))
+    (when cache
+      (setf (cdr cache) nil))))
+
+
+(defun clear-puzzle-cache-all ()
+  "Clears the entire puzzle input cache"
+  (setf *puzzle-input-cache* nil))
+
+
+(defmacro with-puzzle ((&key day token year no-cache)
                        (&key input-binding)
                        &body body)
   "Provides a framework for interacting with Advent of Code, including pulling the puzzle input and submitting answers."
   (let ((G!day (gensym "DAY"))
         (G!year (gensym "YEAR"))
-        (G!token (gensym "TOKEN")))
-    `(let* ((,G!day ,day)
-            (,G!year ,year)
-            (,G!token ,token)
-            (,input-binding (get-puzzle-input ,G!year ,G!day ,G!token)))
-       (labels ((submit-part-one (answer)
-                  (submit-answer ,G!year ,G!day answer :token ,G!token :part :part-one))
-                (submit-part-two (answer)
-                  (submit-answer ,G!year ,G!day answer :token ,G!token :part :part-two)))
-         (declare (ignorable (function submit-part-one)
-                             (function submit-part-two)))
-         (progn
-           ,@body)))))
+        (G!token (gensym "TOKEN"))
+        (G!no-cache (gensym "NO-CACHE"))
+        (G!get-cached-input-fn (gensym "GET-CACHED-INPUT-FN"))
+        (A!submit-part-one (intern (symbol-name 'submit-part-one)))
+        (A!submit-part-two (intern (symbol-name 'submit-part-two))))
+    `(let ((,G!day ,day)
+           (,G!year ,year)
+           (,G!token ,token)
+           (,G!no-cache ,no-cache))
+       (labels ((,G!get-cached-input-fn (year day token)
+                  (let ((cache (assoc (cons year day) *puzzle-input-cache* :test 'equal)))
+                    (if (and (not ,G!no-cache)
+                             cache
+                             (cdr cache))
+                        (cdr cache)
+                        (let ((input (get-puzzle-input year day token)))
+                          (setf *puzzle-input-cache*
+                                (cons (cons (cons year day)
+                                            input)
+                                      *puzzle-input-cache*))
+                          input)))
+                  (get-puzzle-input year day token)))
+         (let* ((,input-binding (,G!get-cached-input-fn ,G!year ,G!day ,G!token)))
+           (labels ((,A!submit-part-one (answer)
+                      (submit-answer ,G!year ,G!day answer :token ,G!token :part :part-one))
+                    (,A!submit-part-two (answer)
+                      (submit-answer ,G!year ,G!day answer :token ,G!token :part :part-two)))
+             (declare (ignorable (function ,A!submit-part-one)
+                                 (function ,A!submit-part-two)))
+             (progn
+               ,@body)))))))
