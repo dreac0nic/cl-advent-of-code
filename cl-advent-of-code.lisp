@@ -22,3 +22,20 @@
           *domain*
           year
           day))
+
+
+(defun bake-cookies (token)
+  "Creates a cookie jar with the token packed as a session cookie"
+  (let ((cookies (make-cookie-jar)))
+    (-<>> (or token
+              (slurp ".session")
+              (sb-ext:posix-getenv "AOC_SESSION"))
+          (make-cookie :name "session"
+                       :value <>
+                       :domain (format nil ".~a" *domain*)
+                       :secure-p 't
+                       :httponly-p 't
+                       :path "/")
+          list
+          (merge-cookies cookies))
+    cookies))
