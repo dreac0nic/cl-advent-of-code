@@ -1,4 +1,5 @@
 ;;;; package.lisp
 
 (defpackage #:cl-advent-of-code
-  (:use #:cl))
+  (:use #:cl #:arrows #:cl-cookie #:lquery)
+  (:export #:with-puzzle))
